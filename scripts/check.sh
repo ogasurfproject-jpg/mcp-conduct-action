@@ -14,7 +14,10 @@ JOIN="${MCP_CONDUCT_JOIN_REGISTER:-false}"
 GATE="${MCP_CONDUCT_GATE:-https://gate.horizonshield.dev}"
 GATE="${GATE%/}"
 OUT_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
-VERDICT="$OUT_DIR/mcp-conduct-verdict.json"
+# One file per endpoint, and it is removed before the request: a failed request must never show an older verdict
+# (2026-09-04, seen on a laptop with no DNS: the error message quoted the previous endpoint's verdict as the "body").
+EP_TAG="$(printf '%s' "${MCP_CONDUCT_ENDPOINT:-}" | (command -v sha256sum >/dev/null 2>&1 && sha256sum || shasum -a 256) | cut -c1-12)"
+VERDICT="$OUT_DIR/mcp-conduct-verdict-$EP_TAG.json"
 GITHUB_OUTPUT="${GITHUB_OUTPUT:-/dev/null}"
 GITHUB_STEP_SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 
@@ -37,6 +40,7 @@ echo "  endpoint: $EP"
 echo "  tool call consent asserted: $ALLOW"
 
 # One measurement can take up to a minute when determinism is measured (one tool, twice).
+rm -f "$VERDICT"
 HTTP="$(curl -sS --max-time 180 --retry 1 --retry-delay 5 \
   -H "Content-Type: application/json" -H "Accept: application/json" \
   -H "User-Agent: mcp-conduct-action/1.0 (+https://github.com/ogasurfproject-jpg/mcp-conduct-action)" \
@@ -44,7 +48,8 @@ HTTP="$(curl -sS --max-time 180 --retry 1 --retry-delay 5 \
 
 if [ "$HTTP" != "200" ]; then
   MSG="the gate did not return a verdict (HTTP ${HTTP:-000})."
-  if [ -s "$VERDICT" ]; then MSG="$MSG body: $(head -c 400 "$VERDICT")"; fi
+  if [ "${HTTP:-000}" = "000" ]; then MSG="$MSG No HTTP response at all: DNS, network or timeout on this side, or the gate was unreachable."; fi
+  if [ -s "$VERDICT" ]; then MSG="$MSG body: $(head -c 400 "$VERDICT" | tr '\n' ' ')"; fi
   die "$MSG This is a failure of the request, not a verdict about $EP."
 fi
 

@@ -106,6 +106,10 @@ together with this path. With the file in place, `/check` measures determinism e
 `allow_tool_call`, and so does every weekly measurement of the register. Until then the honest state of a
 new row is `pending`, which means measured but not fully, not failed.
 
+One limit, stated rather than hidden: consent is per origin, like the agent card. On a platform that serves
+many operators under one origin by path, the file belongs to the platform, so the platform consents for its
+tenants and no tenant can consent alone. The `endpoints` list narrows that; it does not remove it.
+
 ## Reading the verdict without trusting anyone
 
 The verdict is a JSON object. Remove `record_sha256` and `recompute_note`, serialize the rest as compact UTF-8
