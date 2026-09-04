@@ -40,7 +40,7 @@ nothing more.
 | input | default | meaning |
 |---|---|---|
 | `endpoint` | required | https URL of the MCP endpoint this repository deploys |
-| `allow_tool_call` | `true` | let the gate call one tool twice to measure determinism. Set it only for a server you control. The gate records the consent basis in the verdict as asserted by the requester, which is what a CI run from the deploying repository is |
+| `allow_tool_call` | `true` | let the gate call one tool twice to measure determinism. Set it only for a server you control. The gate records the consent basis in the verdict: asserted by the requester, unless the origin publishes the consent file described under the badge, in which case the proof outranks the assertion |
 | `fail_on_not_verified` | `false` | fail the job on `pending`. `held` never fails |
 | `join_register` | `false` | also `POST /watch`, so the endpoint joins the public register and is re-measured weekly |
 | `gate` | `https://gate.horizonshield.dev` | gate base URL |
@@ -87,12 +87,24 @@ somebody else took on a schedule and can be revoked by the next measurement.
 ```
 
 To get on the register, set `join_register: "true"` once (or `POST https://gate.horizonshield.dev/watch`
-with `{"endpoint":"https://your-server.example/mcp"}`). Rows are measured without tool calls unless the
-operator has the owner's consent on record, so a row can reach `verified` only after consent is recorded.
-Today that is done by hand: open an issue on this repository from the account that owns the deploying
-repository, naming the endpoint, and it is added to the published consent list in the gate's source.
-A mechanical consent path (a well known file on your origin) is planned; until it ships, the honest
-state of the badge for a new row is `pending`, which means measured but not fully, not failed.
+with `{"endpoint":"https://your-server.example/mcp"}`).
+
+The register is measured without tool calls unless the owner's consent is on record, and a request field
+is not proof of ownership, so a row can reach `verified` only with proven consent. The proof is a file that
+only the owner of the origin can place (gate 0.2.4):
+
+```
+https://your-server.example/.well-known/mcp-conduct.json
+{"allow_tool_call": true}
+```
+
+Optionally restrict it to exact endpoints: `{"allow_tool_call": true, "endpoints": ["https://your-server.example/mcp"]}`.
+The gate reads the file with the same same-origin rules as the agent card, executes nothing from it, and
+writes into every verdict where and when it read it (`consent_source: "well_known"`). Anything but the
+boolean `true` counts as no consent, and a verdict without consent says so under `consent_lookup`,
+together with this path. With the file in place, `/check` measures determinism even without
+`allow_tool_call`, and so does every weekly measurement of the register. Until then the honest state of a
+new row is `pending`, which means measured but not fully, not failed.
 
 ## Reading the verdict without trusting anyone
 

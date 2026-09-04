@@ -78,6 +78,12 @@ def main():
     print("  record_sha256: " + sha)
     print("  recomputed:    " + ("matches" if recomputed else "MISMATCH"))
     print("  consent basis: " + str(record.get("consent_basis", "")))
+    if record.get("consent_source"):
+        print("  consent source: " + str(record.get("consent_source")))
+    lookup = record.get("consent_lookup") or {}
+    if lookup.get("how_to_consent") and record.get("consent_source") in (None, "none", "requester"):
+        print("  consent file:  " + str(lookup.get("result", "")))
+        print("      " + str(lookup.get("how_to_consent", ""))[:400])
     print()
     for label, mark, reason in rows:
         print("  [" + mark + "] " + label)
@@ -102,6 +108,8 @@ def main():
             note = "" if mark in ("pass", "recomputed, matches") else reason[:220].replace("|", "\\|")
             s.write("| " + label + " | " + mark + " | " + note + " |\n")
         s.write("\n`record_sha256` " + sha + "\n\n")
+        if lookup.get("how_to_consent") and record.get("consent_source") in (None, "none", "requester"):
+            s.write("Consent on record: " + str(lookup.get("result", "")) + ". " + str(lookup.get("how_to_consent", "")) + "\n\n")
         s.write("Recompute it yourself: remove `record_sha256` and `recompute_note`, serialize the rest as compact UTF-8 JSON in the printed key order "
                 "(`json.dumps(r, separators=(',',':'), ensure_ascii=False)` in Python, `JSON.stringify(r)` in JavaScript), SHA-256 the bytes.\n\n")
         s.write("This gate verifies conformance and disclosure only. It does not verify that any figure the server returns is correct, "
