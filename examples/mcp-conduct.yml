@@ -1,0 +1,19 @@
+# Copy to .github/workflows/mcp-conduct.yml in the repository that deploys your MCP server.
+name: MCP conduct
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+jobs:
+  conduct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ogasurfproject-jpg/mcp-conduct-action@main
+        id: conduct
+        with:
+          endpoint: https://your-server.example/mcp
+          allow_tool_call: "true"
+          fail_on_not_verified: "false"
+      - run: echo "status ${{ steps.conduct.outputs.status }} record ${{ steps.conduct.outputs.record_sha256 }} recomputed ${{ steps.conduct.outputs.recomputed }}"

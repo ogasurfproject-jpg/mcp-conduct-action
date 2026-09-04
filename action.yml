@@ -1,0 +1,57 @@
+name: "MCP conduct check"
+description: "Measure an MCP server against the MCP Verification Gate (initialize, tools/list, agent card, who pays, determinism). Free, no key. The verdict carries a record sha256 that this action recomputes locally."
+author: "The HORIZONs Co., Ltd."
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  endpoint:
+    description: "The https URL of the MCP endpoint this repository deploys, for example https://your-server.example/mcp"
+    required: true
+  allow_tool_call:
+    description: "Let the gate call one tool twice with empty arguments to measure determinism. Set it true only for a server you control. With false, determinism is reported as not measured and the status cannot reach verified."
+    required: false
+    default: "true"
+  fail_on_not_verified:
+    description: "Fail the job when the status is pending, that is, a measured condition did not pass. A held status (the server or the gate's relay could not be reached) never fails the job, because it is not a verdict."
+    required: false
+    default: "false"
+  join_register:
+    description: "Also POST /watch so the endpoint joins the public register and is re-measured weekly. Idempotent. The register is measured without tool calls unless the operator has consented, see the README."
+    required: false
+    default: "false"
+  gate:
+    description: "Base URL of the gate"
+    required: false
+    default: "https://gate.horizonshield.dev"
+
+outputs:
+  status:
+    description: "verified, pending or held"
+    value: ${{ steps.check.outputs.status }}
+  record_sha256:
+    description: "SHA-256 of the verdict with record_sha256 and recompute_note removed, as issued by the gate"
+    value: ${{ steps.check.outputs.record_sha256 }}
+  recomputed:
+    description: "true when this action recomputed record_sha256 from the verdict body and it matched"
+    value: ${{ steps.check.outputs.recomputed }}
+  checked_at:
+    description: "Time of the measurement, from the verdict"
+    value: ${{ steps.check.outputs.checked_at }}
+  verdict_path:
+    description: "Path of the verdict JSON on the runner, for upload-artifact"
+    value: ${{ steps.check.outputs.verdict_path }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: check
+      shell: bash
+      env:
+        MCP_CONDUCT_ENDPOINT: ${{ inputs.endpoint }}
+        MCP_CONDUCT_ALLOW_TOOL_CALL: ${{ inputs.allow_tool_call }}
+        MCP_CONDUCT_FAIL_ON_NOT_VERIFIED: ${{ inputs.fail_on_not_verified }}
+        MCP_CONDUCT_JOIN_REGISTER: ${{ inputs.join_register }}
+        MCP_CONDUCT_GATE: ${{ inputs.gate }}
+      run: bash "${{ github.action_path }}/scripts/check.sh"
